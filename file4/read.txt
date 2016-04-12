@@ -1,0 +1,4 @@
+Master node : client
+menu driven
+stem == filename
+runnning properly
