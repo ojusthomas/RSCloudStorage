@@ -1,0 +1,6 @@
+Master node : client
+menu driven
+stem == filename
+rs_encode_file and rs_decode_file is converted into functions
+recovery starts as soon as the node fails.
+runnning properly

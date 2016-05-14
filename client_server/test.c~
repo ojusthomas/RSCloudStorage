@@ -1,0 +1,26 @@
+#include<stdio.h>
+#include<string.h>
+int main()
+{
+	char str[]="fuser 7855/tcp >tmp1.txt";
+	char PID[20];
+	system(str);
+	FILE *p;
+	long int i;
+	p=fopen("tmp1.txt","r");
+	while(!feof(p))
+	{
+  	fscanf (p, "%s", PID);
+      	//fscanf (p, "%d", &i);
+	//fscanf (p, "%d", &i);      
+    	}
+	//i=atol(PID);
+	//printf("%ld\n",i);
+	//char str2[]=(long)i;
+	char str1[]="kill -9 ";
+	
+	strcat(str1,PID);
+	printf("%s\n",str1);
+	system(str1);
+	remove("tmp1.txt");
+} 
