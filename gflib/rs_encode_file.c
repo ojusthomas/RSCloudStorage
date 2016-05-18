@@ -47,6 +47,8 @@ $Revision: 1.2 $
 #include <string.h>//Added by : Supriya
 #include <errno.h>//Added by : Supriya
 #include "rs_encode_file.h"
+#include "fn_call_function.h" // added by ojus
+
 /* This one is going to be in-core */
 
 void encode(char *filename,int n,int m,char *stem)
@@ -58,6 +60,7 @@ void encode(char *filename,int n,int m,char *stem)
   char **buffer, *buf_file, *block;
   struct stat buf;
   FILE *f;
+  FILE *fpm;
 
   /*if (argc != 5) {
     fprintf(stderr, "usage: rs_encode_file filename n m server_ip_addr\n");
@@ -175,13 +178,15 @@ void encode(char *filename,int n,int m,char *stem)
        /*  printf("Block %2d Aft: %3d.\n", i, block[0]); */
       }
     }
-    printf(" writing  ...", buf_file); fflush(stdout);
+    printf(" \n writing  ...", buf_file); fflush(stdout);
     f = fopen(buf_file, "w");
     if (f == NULL) { perror(buf_file); exit(1); }
+    printf("\n %%%%%%%%%%%%%%%%%%%%%");
     fwrite(block, 1, blocksize, f);
     printf(" Done\n");
     fclose(f);
-  }
+  } // end of for
+  printf ("\n ******************************* ooooo ***********************************\n");
 
   sprintf(buf_file, "%s-info.txt", stem, i);
   f = fopen(buf_file, "w");
@@ -196,38 +201,58 @@ void encode(char *filename,int n,int m,char *stem)
 	//Added by :supriya
 	/*Socket program in order to send all the encoded files to different nodes*/
 
-
+  	printf ("\n ******************************* ooooo ***********************************\n");
 	int clientsocket;/* Socket descriptor for client */
-	int enable=1,num=n,port=7856,bytes_read,a,pid,k=0;
+	int enable=1,num=n+m,port=7856,bytes_read,a,pid,k=0;
 	char sup[1024]="",msg[10]="",c[100]="",str[INET_ADDRSTRLEN],ack[10],file_name[100];
 	struct sockaddr_in serverAddr;/* client address */
 	socklen_t addr_size;
-	//char *ip_addr[] ={"192.168.42.70","192.168.42.186","192.168.42.187","192.168.42.189"}; /*stores the ip address of all the storage nodes*/
-
+	char *ip_addr[] ={"192.168.42.190","192.168.42.193","192.168.42.83","192.168.42.191","192.168.42.189","192.168.42.186","192.168.42.70"}; /*stores the ip address of all the storage nodes*/
+	// start - ojus
+	 // file for passing filename and filefragments for meta data storage using python added by Ojus
+	fpm = fopen( "metadata_exchangefile.txt" , "w" );
+    fprintf(fpm,"%s",filename); 
+    fprintf(fpm,"%s","\n");
+    fclose(fpm);
+    //  end -Ojus
+    printf("num : %d ",num);
 	while(num>0)
 	{
+		printf("\n ********************* Start Socket Creation ***************************");
 		strcpy(file_name,file_name_tmp);
+		fpm = fopen( "metadata_exchangefile.txt" , "a" ); // opening the meta data exchange file
+		port = 7856;
 		/* Create socket for connections */
 		clientsocket=socket(PF_INET,SOCK_STREAM,0);
-		printf("\n\nSocket creation: %s\n",strerror(errno));
-
+		if(clientsocket == -1)
+			printf("\n\nSocket creation: %s\n",strerror(errno));
+		while(1){
 		/* Construct local address structure */
 		serverAddr.sin_family=AF_INET;
 		serverAddr.sin_port = htons(port);
-		serverAddr.sin_addr.s_addr=inet_addr("127.0.0.1");
-		memset(serverAddr.sin_zero,'\0',sizeof serverAddr.sin_zero);
-		printf("\n*******%d***%d",num,port);
-		--num;
+		serverAddr.sin_addr.s_addr=inet_addr(ip_addr[num]);
+		memset(serverAddr.sin_zero,'\0',sizeof (serverAddr.sin_zero));
+		printf("\n*******Node :%d *** trying on portno : %d ",num,port);
 		port=port+1;
 		k++;
+		char *ip = ip_addr[num];
 		printf("Before connect\n");
 		if (setsockopt(clientsocket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+		{
 	    		error("setsockopt(SO_REUSEADDR) failed");
-
+	    		printf("\nsetsockopt(SO_REUSEADDR) failed");
+		}
 		/*connect to the nodes to receive the encoded files*/
 		if ((connect(clientsocket,(struct sockaddr*)&serverAddr,sizeof(serverAddr)))==-1)
-		continue;
-		printf("Connection: Success\n");
+		{
+			printf("Connection to %s : Failed %s \n",ip_addr[num],strerror(errno));
+			//num--;
+			continue;
+		}
+		printf("Connection to %s : Success\n",ip);
+		num--;
+		break;
+		}
 
 		printf("After connect\n");
 		
@@ -257,13 +282,16 @@ void encode(char *filename,int n,int m,char *stem)
 		a=fscanf(t,"%s",c); /*reading the names of fragment files (stem)*/
 	
 		fp=fopen(c,"r"); /*opening the fragments*/
+		
 
 			
 		/*sending the fragment file name nad its content*/
 		send(clientsocket,c,strlen(c),0);
 		bytes_read=recv(clientsocket,msg,sizeof(msg),0);
 		msg[bytes_read]='\0';
-
+		struct stat st;
+		stat(c, &st);
+		int size = st.st_size;
 		//printf("\n\t%s\n",msg);
 		if(strcmp(msg,"recv")==0)
 		{
@@ -271,8 +299,12 @@ void encode(char *filename,int n,int m,char *stem)
 			sup[bytes_read]='\0';
 			printf("\nFile content :  %s",sup);
 		 	send(clientsocket,sup,strlen(sup),0);
-
-			inet_ntop(AF_INET, &(serverAddr.sin_addr), str, INET_ADDRSTRLEN);
+		 	inet_ntop(AF_INET, &(serverAddr.sin_addr), str, INET_ADDRSTRLEN);
+		 	fprintf(fpm,"%s  ",c);
+            fprintf(fpm,"%s  ",str);
+            fprintf(fpm,"%d  ",size);
+            fprintf(fpm,"%s","\n");
+			
 			printf("\nFile : %s has been sent to %s\n",c,str);
 		}
 		remove(c);
@@ -309,6 +341,11 @@ void encode(char *filename,int n,int m,char *stem)
 		//close both the files.
 		fclose(t);
 		fclose(fp2);
+		fclose(fpm);
+		printf("\n****** Hello ****** \n");
+		char *param[] = {"readfile","update_file_metadata","/home/user/Dropbox/Code/file8/gflib/metadata_exchangefile.txt"};
+		fn_call(3,param); // call to transfer the meta data to python meta data keeper
+		printf("\n I 'm back ......");
 		//remove original file
 		remove(tmp_filename);
 		//rename the file copy.c to original name
@@ -321,7 +358,7 @@ void encode(char *filename,int n,int m,char *stem)
 		//}
 			
 	}/*end of the while */
-
+	printf("\n All files transferred");
 	/*FILE *zx;
 	zx=fopen("Master_file.txt","a+");	
 	fprintf(zx,"%s","Stripe ends\n");
