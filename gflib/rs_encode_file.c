@@ -50,6 +50,23 @@ $Revision: 1.2 $
 #include "fn_call_function.h" // added by ojus
 
 /* This one is going to be in-core */
+void createpath(char * filename)
+{
+	char cwd[1024];
+	printf("\n Inside createpath %s ",filename);
+	if (getcwd(cwd, sizeof(cwd)) != NULL)
+    	fprintf(stdout, "Current working dir: %s\n", cwd);
+  	else
+    	error("getcwd() error");
+    // Writing the fragments to Data folder in the storage node, added by Ojus  # start
+    mkdir("MetaData", S_IRUSR | S_IWUSR | S_IXUSR);
+    strncat(cwd,"/MetaData/",sizeof("/MetaData/"));
+    //sprintf(buf_file, "%s-%04d.rs", stem, i);
+    strcat(cwd,filename);
+    strncpy(filename,cwd,sizeof(cwd));
+    printf("\n Exiting createpath : %s ",filename);
+    //return filename;
+}
 
 void encode(char *filename,int n,int m,char *stem)
 {
@@ -57,10 +74,10 @@ void encode(char *filename,int n,int m,char *stem)
   int rows, cols, blocksize, orig_size;
   int sz, *factors, tmp, factor;
   //char *stem; 
-  char **buffer, *buf_file, *block;
+  char **buffer, buf_file[1024] ="", *block;
   struct stat buf;
   FILE *f;
-  FILE *fpm;
+  FILE *fpm,*fls;
 
   /*if (argc != 5) {
     fprintf(stderr, "usage: rs_encode_file filename n m server_ip_addr\n");
@@ -78,7 +95,7 @@ void encode(char *filename,int n,int m,char *stem)
   //Author : Supriya
   char files[40]="",file_name_tmp[40]="";
   strcat(files,"ls ");
-  strcat(files,stem);
+  //strcat(files,stem);
   strcpy(file_name_tmp,filename);
   
   /*ends*/
@@ -127,38 +144,59 @@ void encode(char *filename,int n,int m,char *stem)
   }
   fclose(f);
 
-  buf_file = (char *) malloc(sizeof(char)*(strlen(stem)+30));
-  if (buf_file == NULL) { perror("malloc - buf_file"); exit(1); }
+  //buf_file = (char *) malloc(sizeof(char)*(strlen(stem)+30));
+  //if (buf_file == NULL) { perror("malloc - buf_file"); exit(1); }
+
+  // @info Creating Data fragments
+  char cwd[1024];
   block = (char *) malloc(sizeof(char)*blocksize);
   if (block == NULL) { perror("malloc - block"); exit(1); }
+  char tmp_filename[]="tmp.txt";
+  fls = fopen(tmp_filename,"w");
   for (i = 0; i < n; i++) {
+  	/*if (getcwd(cwd, sizeof(cwd)) != NULL)
+    	fprintf(stdout, "Current working dir: %s\n", cwd);
+  	else
+    	error("getcwd() error");
+    // Writing the fragments to Data folder in the storage node, added by Ojus  # start
+    mkdir("MetaData", S_IRUSR | S_IWUSR | S_IXUSR);
+    strncat(cwd,"/MetaData/",sizeof("/MetaData/"));*/
+    
     sprintf(buf_file, "%s-%04d.rs", stem, i);
+    //strncat(cwd,buf_file,sizeof(buf_file));
+    //strncpy(buf_file,cwd,sizeof(cwd));
+    fprintf(fls,"%s\n",buf_file);
+    createpath(buf_file);
     printf("Writing %s ...", buf_file); fflush(stdout);
+   
     f = fopen(buf_file, "w");
     if (f == NULL) { perror(buf_file); exit(1); }
     fwrite(buffer[i], 1, blocksize, f);
     fclose(f);
     printf(" Done\n");
   }
-
+  fclose(fls);
+//@ info end of creating data fragments
 	// Added by : supriya 
 	
 	/*collect the fragments name in tmp.txt*/  
-  	strcat(files,"-* >tmp.txt");
-  	//printf("\n%s....",files);
- 	system(files);
-	char tmp_filename[]="tmp.txt";
+    //createpath(files);
+   // printf("\n 1 ~~~~~~~~ > %s....",files);
+  	//strcat(files,"-* >tmp.txt");
+  	//printf("\n 2 ~~~~~~~~ > %s....",files);
+ 	//system(files);
+	
 	
 	/*ends*/
 
-	
+	// @ info Start of creating parity fragments	
   factors = (int *) malloc(sizeof(int)*n);
   if (factors == NULL) { perror("malloc - factors"); exit(1); }
 
   for (i = 0; i < n; i++) factors[i] = 1;
   
   vdm = gf_make_dispersal_matrix(rows, cols);
-
+  fls = fopen(tmp_filename,"a");
   for (i = cols; i < rows; i++) {
     sprintf(buf_file, "%s-%04d.rs", stem, i);
     printf("Calculating  %s ...", buf_file); fflush(stdout);
@@ -178,7 +216,20 @@ void encode(char *filename,int n,int m,char *stem)
        /*  printf("Block %2d Aft: %3d.\n", i, block[0]); */
       }
     }
-    printf(" \n writing  ...", buf_file); fflush(stdout);
+    
+    //if (getcwd(cwd, sizeof(cwd)) != NULL)
+    	///fprintf(stdout, "Current working dir: %s\n", cwd);
+  	//else
+    	//error("getcwd() error");
+    // Writing the fragments to Data folder in the storage node, added by Ojus  # start
+    //mkdir("MetaData", S_IRUSR | S_IWUSR | S_IXUSR);
+    //strncat(cwd,"/MetaData/",sizeof("/MetaData/"));
+    sprintf(buf_file, "%s-%04d.rs", stem, i);
+    //strcat(cwd,buf_file);
+    fprintf(fls,"%s\n",buf_file);
+    createpath(buf_file);
+    strncpy(buf_file,cwd,sizeof(cwd));
+    printf(" \n writing  ...%s ", buf_file); fflush(stdout);
     f = fopen(buf_file, "w");
     if (f == NULL) { perror(buf_file); exit(1); }
     printf("\n %%%%%%%%%%%%%%%%%%%%%");
@@ -186,9 +237,24 @@ void encode(char *filename,int n,int m,char *stem)
     printf(" Done\n");
     fclose(f);
   } // end of for
+  
+  //@ info end of creating parity fragments
   printf ("\n ******************************* ooooo ***********************************\n");
 
   sprintf(buf_file, "%s-info.txt", stem, i);
+  //if (getcwd(cwd, sizeof(cwd)) != NULL)
+    	//fprintf(stdout, "Current working dir: %s\n", cwd);
+  	//else
+    //	error("getcwd() error");
+    // Writing the fragments to Data folder in the storage node, added by Ojus  # start
+    //mkdir("MetaData", S_IRUSR | S_IWUSR | S_IXUSR);
+   // strncat(cwd,"/MetaData/",sizeof("/MetaData/"));
+   // sprintf(buf_file, "%s-%04d.rs", stem, i);
+   // strncat(cwd,buf_file,sizeof(buf_file));
+    fprintf(fls,"%s\n",buf_file);
+    createpath(buf_file);
+    strcpy(buf_file,cwd);
+    
   f = fopen(buf_file, "w");
   if (f == NULL) { perror(buf_file); exit(1); }
   fprintf(f, "%d\n", orig_size);
@@ -197,6 +263,8 @@ void encode(char *filename,int n,int m,char *stem)
   fprintf(f, "%d\n", n);
   fprintf(f, "%d\n", m);
   gf_write_matrix(f, vdm, rows, cols);
+  fclose(f);
+  fclose(fls);
 
 	//Added by :supriya
 	/*Socket program in order to send all the encoded files to different nodes*/
@@ -204,7 +272,7 @@ void encode(char *filename,int n,int m,char *stem)
   	printf ("\n ******************************* ooooo ***********************************\n");
 	int clientsocket;/* Socket descriptor for client */
 	int enable=1,num=n+m,port=7856,bytes_read,a,pid,k=0;
-	char sup[1024]="",msg[10]="",c[100]="",str[INET_ADDRSTRLEN],ack[10],file_name[100];
+	char sup[1024]="",msg[10]="",frag_name[100]="",temp_frag_name[100] = "",str[INET_ADDRSTRLEN],ack[10],file_name[100];
 	struct sockaddr_in serverAddr;/* client address */
 	socklen_t addr_size;
 	char *ip_addr[] ={"192.168.42.190","192.168.42.193","192.168.42.83","192.168.42.191","192.168.42.189","192.168.42.186","192.168.42.70"}; /*stores the ip address of all the storage nodes*/
@@ -250,6 +318,7 @@ void encode(char *filename,int n,int m,char *stem)
 			continue;
 		}
 		printf("Connection to %s : Success\n",ip);
+		fflush(stdout);
 		num--;
 		break;
 		}
@@ -265,57 +334,63 @@ void encode(char *filename,int n,int m,char *stem)
 	        }
 	      
 	        if (pid == 0) {	*/
-	         	
+	    printf("\n @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2");     	
 		send(clientsocket,"Encode",7,0);/*option chosen*/
+		printf("\n @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@3");
 		bytes_read=recv(clientsocket,ack,sizeof(ack),0);
-
+		ack[bytes_read]='\0';
 		/*Master log file is opened to write the details of storage nodes*/
 		FILE *mf,*t,*fp;
 		mf=fopen("Master_file.txt","a+");
 	
 		strcat(file_name,"\t");/*wrting the file name*/
 		fprintf(mf,"%s",file_name);
-				
+		printf("\n @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@4");
 		t=fopen(tmp_filename,"r");/*fragment file names are stored in tmp.txt*/
-
-
-		a=fscanf(t,"%s",c); /*reading the names of fragment files (stem)*/
+		printf("\n @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@5");
+		
+		a=fscanf(t,"%s",frag_name); /*reading the names of fragment files (stem)*/
+		strcpy(temp_frag_name,frag_name);
+		createpath(temp_frag_name);
+		printf("\n ##### C : %s",temp_frag_name);
+		printf("\n  **** read : %d ",a);
+		printf("\n &&  &&&& &&&& C = %s ",temp_frag_name);
 	
-		fp=fopen(c,"r"); /*opening the fragments*/
+		fp=fopen(temp_frag_name,"r"); /*opening the fragments*/
 		
 
 			
 		/*sending the fragment file name nad its content*/
-		send(clientsocket,c,strlen(c),0);
+		send(clientsocket,frag_name,strlen(frag_name),0);
 		bytes_read=recv(clientsocket,msg,sizeof(msg),0);
 		msg[bytes_read]='\0';
 		struct stat st;
-		stat(c, &st);
+		stat(frag_name, &st);
 		int size = st.st_size;
 		//printf("\n\t%s\n",msg);
 		if(strcmp(msg,"recv")==0)
 		{
 		 	bytes_read = fread(sup, sizeof(char),sizeof(sup), fp);
 			sup[bytes_read]='\0';
-			printf("\nFile content :  %s",sup);
+			//printf("\nFile content :  %s",sup);
 		 	send(clientsocket,sup,strlen(sup),0);
 		 	inet_ntop(AF_INET, &(serverAddr.sin_addr), str, INET_ADDRSTRLEN);
-		 	fprintf(fpm,"%s  ",c);
+		 	fprintf(fpm,"%s  ",frag_name);
             fprintf(fpm,"%s  ",str);
             fprintf(fpm,"%d  ",size);
             fprintf(fpm,"%s","\n");
 			
-			printf("\nFile : %s has been sent to %s\n",c,str);
+			printf("\nFile : %s has been sent to %s\n",frag_name,str);
 		}
-		remove(c);
+		//remove(frag_name);
 		
 		
 		/*Writing in the Master log file*/	
 		printf("\n******start******");
-		strcat(c,"\t"); /*fragment name*/
-		strcat(c,str);  /*ip address of the storage node receiving  above fragment*/
-		strcat(c,"\n");
-		fprintf(mf,"%s",c);	
+		strcat(frag_name,"\t"); /*fragment name*/
+		strcat(frag_name,str);  /*ip address of the storage node receiving  above fragment*/
+		strcat(frag_name,"\n");
+		fprintf(mf,"%s",frag_name);	
 		printf("\n******ends******");
 		fclose(mf);
 	
@@ -365,6 +440,6 @@ void encode(char *filename,int n,int m,char *stem)
 	fclose(zx);*/
 	
 	
-   remove("tmp.txt");
+   //remove("tmp.txt");
 	/*socket program ends*/
 }
