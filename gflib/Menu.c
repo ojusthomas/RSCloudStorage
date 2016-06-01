@@ -64,7 +64,7 @@ int main()
   			printf("\nEnter the file name  :- "); 
   			scanf("%s",file);
 			strcpy(stem,file);
-			a=decode(&stem,&file);			
+			a=decode(stem,file);			
                         break;
 		//case 3: recovery(3);
 		case 3 : break;

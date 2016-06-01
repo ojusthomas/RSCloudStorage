@@ -43,12 +43,15 @@ $Revision: 1.2 $
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
+#include<unistd.h>
 #include<sys/errno.h>
 #include<sys/socket.h>//Added by : Supriya
 #include<netinet/in.h>//Added by : Supriya
 #include<string.h>//Added by : Supriya
 #include "rs_encode_file.h"
+#include "fn_call_function.h" // added by ojus @info for python C interconnection
+
+
 
 /* This one is going to be in-core */
 
@@ -58,7 +61,7 @@ int decode(char *stem,char *file_name)
   int rows, cols, blocksize, orig_size;
   int n, m, sz, *factors, tmp, factor, *exists, *map;
   char *filename; 
-  char **buffer, *buf_file, *block;
+  char **buffer, buf_file[1024], *block;
   struct stat buf;
   Condensed_Matrix *cm;
   int *mat, *id;
@@ -72,10 +75,14 @@ int decode(char *stem,char *file_name)
   file_name=argv[2];
 
   stem = argv[1];*/
-  buf_file = (char *) malloc(sizeof(char)*(strlen(stem)+30));
+  //buf_file = (char *) malloc(100*sizeof(char));
   if (buf_file == NULL) { perror("malloc - buf_file"); exit(1); }
-  sprintf(buf_file, "%s-info.txt", stem, i);
+  sprintf(buf_file, "/home/user/Dropbox/Code/file8/gflib/MetaData/%s-info.txt", stem, i);
+  //createpath(buf_file);
+  printf("\n File -- > %s \n ", buf_file);
   f = fopen(buf_file, "r");
+  printf("\n &&&&&&&&&&&&&&&&&&&&&&&&&&");
+  printf("\n Stem : %s , Filename : %s ", stem, file_name);
   if (f == NULL) { perror(buf_file); exit(1); }
   if (fscanf(f, "%d\n", &orig_size) != 1) { fprintf(stderr, "Error reading info file 1\n"); exit(1); }
   if (fscanf(f, "%d\n", &sz) != 1) { fprintf(stderr, "Error reading info file 2\n"); exit(1); }
@@ -117,35 +124,36 @@ int decode(char *stem,char *file_name)
 	
 	int clientsocket;/* Socket descriptor for client */
 	int enable=1,num=n,flag=0,p=0,pos,port=7855; 
-	char file[40]="",stem_filename[40]="",ip_addr[40]="",ack[10];
-	char sup[1024]="",c,line[100]="",search_string[30]="";
+	char file[40]="",stem_filename[1024]="",ip_addr[40]="",ack[10];
+	char sup[1024]="",c,line[100]="",search_string[30]="",cwd[1024] = "";
 	int bytes_received,y;
 	strcpy(search_string,file_name);
 	//printf("\n%s***",search_string);
 	struct sockaddr_in serverAddr;/* client address */
 	socklen_t addr_size;
-	
+  printf("\n------------- Filename to be send %s ",file_name);
+	char *param[] = {"readfile","read_file_metadata",file_name};
+  fn_call(3,param); // call to transfer the meta data to python meta data keeper
+  printf("\n I 'm back ......");
 	
 	/*opening the master to file*/
-	FILE *fp;
-	fp=fopen("Master_file.txt","r");
+	FILE *fp,*fq;
+	fp=fopen("filefrags_meta_file_read.txt","r");
 	
 	if(!fp)
-            {
-                    perror("\nCould not find the Master file");
-                    return 0;
-            }
-	while ( c!= EOF )/* read a line */
-           {
+  {
+      perror("\nCould not find the Master file");
+      return 0;
+  }
+	//while ( c!= EOF )/* read a line */
+  /*{
 		c=fscanf( fp, "%s",line ) ;
 		//printf("%s\n",line);
-
-                    if(strstr(line,search_string)){
+    if(strstr(line,search_string)){
 			p=1;
 			break;	
-			
-			}
-            }
+		}
+  }
 		//printf("ssss");
 		pos=ftell(fp);
 		//printf("%d\n",n);
@@ -154,23 +162,26 @@ int decode(char *stem,char *file_name)
 		if(p!=1){
 			perror("\nNo such File exists in the encoded file list");
 			return 0;
-		}
+		}*/
 		//printf("%d\n",fseek( fp, n, SEEK_SET ));
 		//c=fscanf( fp, "%s",line ) ;
 		//printf("%s\n",line);
 
 	
 
-	printf("%d\n",num);
+	printf("@@@@@@@@@@@@@@@ %d\n",num);
 	while(num>0)
 	{
 	strcpy(sup,"");
 	/*reading the master file to get the ip address of different nodes*/
 	fscanf(fp,"%s",file);
-	fscanf(fp,"%s",stem_filename);
+	//
 	fscanf(fp,"%s",ip_addr);
+  char temp[30];
+  fscanf(fp,"%s",temp);
+  strcpy(stem_filename,file);
 	//fscanf(fp,"%s",port);
-	//printf("%s...%s\n",file,stem_filename);
+	printf("%s...%s...%s\n",file,ip_addr,temp);
 
 	/* Create socket for connections */
 	clientsocket=socket(PF_INET,SOCK_STREAM,0);
@@ -211,31 +222,46 @@ int decode(char *stem,char *file_name)
 
 	send(clientsocket,"Decode",7,0);
 	bytes_received=recv(clientsocket,ack,sizeof(ack),0);
-
+  bytes_received = 0;
+  printf("\n ACK --> %s ",ack);
 	send(clientsocket,stem_filename,strlen(stem_filename),0);
 	bytes_received=recv(clientsocket,sup,sizeof(sup),0);
 
 	sup[bytes_received]='\0';
-	//printf("**************");
+	printf("AAAAA ************** bytes received : %d ",bytes_received);
 
 	/*checking if the file has been received or not */
 	if(strcmp(sup,"File does not exist")!=0){
 
 		/*write the received content into file*/
+    
+    if (getcwd(cwd, sizeof(cwd)) != NULL)
+        fprintf(stdout, "Current working dir: %s\n", cwd);
+    else
+        perror("getcwd() error");
+    // Writing the fragments to Data folder in the storage node, added by Ojus  # start
+    mkdir("ReceivedData", S_IRUSR | S_IWUSR | S_IXUSR);
+    printf("\n &&&&&&&&&&&&&&&&&&&&&&&&&& 777");
+    strcat(cwd,"/ReceivedData/");
+    strcat(cwd,stem_filename);
+    strcpy(stem_filename,cwd);
+    printf("\n stem_file : %s ", stem_filename);
 	
 		FILE *ft;
-		ft=fopen(stem_filename,"w");
+		ft=fopen(stem_filename,"wb");
 		
-		//flag = fwrite(sup, sizeof(char), bytes_received, f);
-		printf("content: %s\n",sup);
-		fprintf(ft,"%s",sup);
+		flag = fwrite(sup, sizeof(char), bytes_received, ft);
+    printf("\n #### content: \n");
+    fwrite(sup, sizeof(char), bytes_received, stdout);
+		
+		//fprintf(ft,"%s",sup);
 		flag++;
 		fclose(ft);
 
 		
 	}
 	else{
-		printf("%s \n",sup);		
+		printf("\n BBBBBBB %s \n",sup);		
          }
 
 		//printf("%d\t%d\n",num,port);
@@ -249,38 +275,62 @@ fflush(stdin);
    	   exit(1);
 	}*/
 /*end of socket program*/
-
-	
+  sprintf(file, "%s-gen.rs", stem);
+	for(i=0;i< rows;i++)
+	{
+		map[i] = 1;
+		printf("\n @@@@@ ******************** map[%d] : %d ",i,map[i]);
+	}
 
   j = 0;
-  for (i = 0; i < rows; i++) {
+  printf("\n ^^^^^ rows : %d",rows);
+  for (i = 0; i < rows && j < cols; i++) {
+	  printf("\n i = %d",i);
     sprintf(buf_file, "%s-%04d.rs", stem, i);
+    if (getcwd(cwd, sizeof(cwd)) != NULL)
+            fprintf(stdout, "Current working dir: %s\n", cwd);
+        else
+    perror("getcwd() error");
+    mkdir("ReceivedData", S_IRUSR | S_IWUSR | S_IXUSR);
+    strncat(cwd,"/ReceivedData/",sizeof("/ReceivedData/"));
+    strcat(cwd,buf_file);
+    printf("\n cwd : %s ",cwd);
+    strcpy(buf_file,"\0");
+    strcat(buf_file,cwd);
+    printf("\n buf_file : %s ",buf_file);
     if (stat(buf_file, &buf) != 0) {
-	printf("\nfailed stem1= ****%s-%04d.rs", stem, i);
-      map[i] = -1;
-    } else {
-      if (buf.st_size != blocksize) {
-	printf("\nfailed stem2= ****%s-%04d.rs", stem, i);
+	     printf("\nfailed stem1= ****%s-%04d.rs", stem, i);
         map[i] = -1;
-      } else {
+    } else 
+    {
+        if (buf.st_size != blocksize) {
+	      printf("\nfailed stem2= ****%s-%04d.rs", stem, i);
+        map[i] = -1;
+    } else
+    {
+        printf("\nstem= ****%s-%04d.rs", stem, i);//testing
+	      printf("\n j=%d",j);//testing
+		    //printf("\n******************** map[%d] : %d ",i,map[i]);
+        //if(i<4){
+		    map[i] = j++;
+		// }
+        //printf("\n**********buf_file : %s ********* map[%d] : %d ",buf_file, i,map[i]);
 
-	printf("\nstem= ****%s-%04d.rs", stem, i);//testing
-	printf("\n j=%d",j);//testing
-
-        map[i] = j++;
-        f = fopen(buf_file, "r");
+        f = fopen(buf_file, "rb");
         if (f == NULL) { perror(buf_file); exit(1); }
-        k = fread(buffer[map[i]], 1, blocksize, f);
+        k = fread(buffer[i], 1, blocksize, f);
+        printf("\n k = %d , blocksize = %d \n ********* \n content : %s \n ***********\n ",k,blocksize,buffer[map[i]]);
         if (k != blocksize) {
-          fprintf(stderr, "%s -- stat says %d bytes, but only read %d\n", 
-             buf_file, buf.st_size, k);
+          fprintf(stderr, "%s -- stat says %d bytes, but only read %d\n",buf_file, buf.st_size, k);
           exit(1);
         }
+        fclose(f);
       }
     }
   }
  
-//printf("\n********************");
+printf("\n********************");
+fq = fopen(file,"w");
 
   if (j < cols) {
     fprintf(stderr, "Only %d fragments -- need %d.  Sorry\n", j, cols);
@@ -295,10 +345,13 @@ fflush(stdin);
     for (i = 0; i < cols; i++) {
       if (cache_size > 0) {
         fwrite(buffer[i], 1, (cache_size > blocksize) ? blocksize : cache_size, stdout);
+        fwrite(buffer[i], 1, (cache_size > blocksize) ? blocksize : cache_size,fq);
         cache_size -= blocksize;
+        
       }
     }
-    exit(0);
+    fclose(fq);
+    return 0;
   } 
 
   block = (char *) malloc(sizeof(char)*blocksize);
@@ -367,8 +420,10 @@ fflush(stdin);
       }
       fprintf(stderr, "writing ... "); fflush(stderr);
       fwrite(block, 1, (cache_size > blocksize) ? blocksize : cache_size, stdout);
+      //fwrite(block, 1, (cache_size > blocksize) ? blocksize : cache_size, fq);
       cache_size -= blocksize;
       fprintf(stderr, "Done\n"); fflush(stderr);
+      fclose(fq);
     }
   }
 

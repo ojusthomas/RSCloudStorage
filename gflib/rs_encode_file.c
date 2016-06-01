@@ -47,15 +47,15 @@ $Revision: 1.2 $
 #include <string.h>//Added by : Supriya
 #include <errno.h>//Added by : Supriya
 #include "rs_encode_file.h"
-#include "fn_call_function.h" // added by ojus
+#include "fn_call_function.h" // added by ojus @info for python C interconnection
 
 /* This one is going to be in-core */
 void createpath(char * filename)
 {
-	char cwd[1024];
+	char cwd[800];
 	printf("\n Inside createpath %s ",filename);
 	if (getcwd(cwd, sizeof(cwd)) != NULL)
-    	fprintf(stdout, "Current working dir: %s\n", cwd);
+    	fprintf(stdout, "\nCurrent working dir: %s\n", cwd);
   	else
     	error("getcwd() error");
     // Writing the fragments to Data folder in the storage node, added by Ojus  # start
@@ -74,10 +74,10 @@ void encode(char *filename,int n,int m,char *stem)
   int rows, cols, blocksize, orig_size;
   int sz, *factors, tmp, factor;
   //char *stem; 
-  char **buffer, buf_file[1024] ="", *block;
+  char **buffer, buf_file[800] ="", *block;
   struct stat buf;
   FILE *f;
-  FILE *fpm,*fls;
+  FILE *fpm,*fls,*ft;
 
   /*if (argc != 5) {
     fprintf(stderr, "usage: rs_encode_file filename n m server_ip_addr\n");
@@ -144,8 +144,7 @@ void encode(char *filename,int n,int m,char *stem)
   }
   fclose(f);
 
-  //buf_file = (char *) malloc(sizeof(char)*(strlen(stem)+30));
-  //if (buf_file == NULL) { perror("malloc - buf_file"); exit(1); }
+  
 
   // @info Creating Data fragments
   char cwd[1024];
@@ -154,40 +153,25 @@ void encode(char *filename,int n,int m,char *stem)
   char tmp_filename[]="tmp.txt";
   fls = fopen(tmp_filename,"w");
   for (i = 0; i < n; i++) {
-  	/*if (getcwd(cwd, sizeof(cwd)) != NULL)
-    	fprintf(stdout, "Current working dir: %s\n", cwd);
-  	else
-    	error("getcwd() error");
-    // Writing the fragments to Data folder in the storage node, added by Ojus  # start
-    mkdir("MetaData", S_IRUSR | S_IWUSR | S_IXUSR);
-    strncat(cwd,"/MetaData/",sizeof("/MetaData/"));*/
-    
+  	
+    strcpy(buf_file,"\0");
     sprintf(buf_file, "%s-%04d.rs", stem, i);
-    //strncat(cwd,buf_file,sizeof(buf_file));
-    //strncpy(buf_file,cwd,sizeof(cwd));
+   
     fprintf(fls,"%s\n",buf_file);
-    createpath(buf_file);
+    createpath(buf_file); // @info making the file path to Metadata folder
+    printf("\n Buf_file :  %s ",buf_file);
+    
     printf("Writing %s ...", buf_file); fflush(stdout);
    
     f = fopen(buf_file, "w");
     if (f == NULL) { perror(buf_file); exit(1); }
+    
     fwrite(buffer[i], 1, blocksize, f);
     fclose(f);
     printf(" Done\n");
   }
   fclose(fls);
-//@ info end of creating data fragments
-	// Added by : supriya 
-	
-	/*collect the fragments name in tmp.txt*/  
-    //createpath(files);
-   // printf("\n 1 ~~~~~~~~ > %s....",files);
-  	//strcat(files,"-* >tmp.txt");
-  	//printf("\n 2 ~~~~~~~~ > %s....",files);
- 	//system(files);
-	
-	
-	/*ends*/
+
 
 	// @ info Start of creating parity fragments	
   factors = (int *) malloc(sizeof(int)*n);
@@ -217,18 +201,13 @@ void encode(char *filename,int n,int m,char *stem)
       }
     }
     
-    //if (getcwd(cwd, sizeof(cwd)) != NULL)
-    	///fprintf(stdout, "Current working dir: %s\n", cwd);
-  	//else
-    	//error("getcwd() error");
-    // Writing the fragments to Data folder in the storage node, added by Ojus  # start
-    //mkdir("MetaData", S_IRUSR | S_IWUSR | S_IXUSR);
-    //strncat(cwd,"/MetaData/",sizeof("/MetaData/"));
+  	strcpy(buf_file,"\0");  
     sprintf(buf_file, "%s-%04d.rs", stem, i);
-    //strcat(cwd,buf_file);
+ 
     fprintf(fls,"%s\n",buf_file);
     createpath(buf_file);
-    strncpy(buf_file,cwd,sizeof(cwd));
+    //strcpy(buf_file,cwd);
+    
     printf(" \n writing  ...%s ", buf_file); fflush(stdout);
     f = fopen(buf_file, "w");
     if (f == NULL) { perror(buf_file); exit(1); }
@@ -240,21 +219,14 @@ void encode(char *filename,int n,int m,char *stem)
   
   //@ info end of creating parity fragments
   printf ("\n ******************************* ooooo ***********************************\n");
-
+  strcpy(buf_file,"\0");
   sprintf(buf_file, "%s-info.txt", stem, i);
-  //if (getcwd(cwd, sizeof(cwd)) != NULL)
-    	//fprintf(stdout, "Current working dir: %s\n", cwd);
-  	//else
-    //	error("getcwd() error");
-    // Writing the fragments to Data folder in the storage node, added by Ojus  # start
-    //mkdir("MetaData", S_IRUSR | S_IWUSR | S_IXUSR);
-   // strncat(cwd,"/MetaData/",sizeof("/MetaData/"));
-   // sprintf(buf_file, "%s-%04d.rs", stem, i);
-   // strncat(cwd,buf_file,sizeof(buf_file));
+  
     fprintf(fls,"%s\n",buf_file);
     createpath(buf_file);
-    strcpy(buf_file,cwd);
     
+    //strcpy(buf_file,cwd);
+    printf("\n(()))(((((_))))) Buf_file : %s",buf_file);
   f = fopen(buf_file, "w");
   if (f == NULL) { perror(buf_file); exit(1); }
   fprintf(f, "%d\n", orig_size);
@@ -275,7 +247,7 @@ void encode(char *filename,int n,int m,char *stem)
 	char sup[1024]="",msg[10]="",frag_name[100]="",temp_frag_name[100] = "",str[INET_ADDRSTRLEN],ack[10],file_name[100];
 	struct sockaddr_in serverAddr;/* client address */
 	socklen_t addr_size;
-	char *ip_addr[] ={"192.168.42.190","192.168.42.193","192.168.42.83","192.168.42.191","192.168.42.189","192.168.42.186","192.168.42.70"}; /*stores the ip address of all the storage nodes*/
+	char *ip_addr[] ={"192.168.42.190","192.168.42.193","192.168.42.83","192.168.42.191","192.168.42.187","192.168.42.186","192.168.42.70"}; /*stores the ip address of all the storage nodes*/
 	// start - ojus
 	 // file for passing filename and filefragments for meta data storage using python added by Ojus
 	fpm = fopen( "metadata_exchangefile.txt" , "w" );
@@ -356,32 +328,86 @@ void encode(char *filename,int n,int m,char *stem)
 		printf("\n  **** read : %d ",a);
 		printf("\n &&  &&&& &&&& C = %s ",temp_frag_name);
 	
-		fp=fopen(temp_frag_name,"r"); /*opening the fragments*/
+		fp=fopen(temp_frag_name,"rb"); /*opening the fragments*/
 		
-
+		ft = fopen("/home/user/Dropbox/Code/file8/gflib/test3.txt","w");
 			
 		/*sending the fragment file name nad its content*/
 		send(clientsocket,frag_name,strlen(frag_name),0);
 		bytes_read=recv(clientsocket,msg,sizeof(msg),0);
 		msg[bytes_read]='\0';
 		struct stat st;
-		stat(frag_name, &st);
+		printf("\n Frag_name : %s ",frag_name);
+		stat(temp_frag_name, &st);
 		int size = st.st_size;
-		//printf("\n\t%s\n",msg);
+		printf("\n\t%s\n",msg);
+		//fseek( fp, 0, SEEK_SET ); 
+		//rewind(fp);
 		if(strcmp(msg,"recv")==0)
 		{
-		 	bytes_read = fread(sup, sizeof(char),sizeof(sup), fp);
-			sup[bytes_read]='\0';
-			//printf("\nFile content :  %s",sup);
-		 	send(clientsocket,sup,strlen(sup),0);
+		 	//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+		 	
+		 	//while(1)
+			//{
+            /* First read file in chunks of 256 bytes */
+            unsigned char buff[1024]={0};
+            int nread = fread(buff,sizeof(char),sizeof(buff),fp);
+            printf("Bytes read %d \n", nread);
+            buff[nread]='\0';
+            printf("\n Read COntent : %s \n",buff);
+            int sendcnt = send(clientsocket,buff,nread,0);        
+            printf("\n sendCnt : %d ",sendcnt);
+			bytes_read = nread;
+            /* If read was success, send data. */
+            //if(nread > 0)
+            //{
+              //  printf("Sending \n : %s \n ",buff);
+                //int sendcount = write(clientsocket, buff, nread);
+                //printf("\n Send count : %d ",sendcount);
+                //getchar();
+            //}
+
+            /*
+             * There is something tricky going on with read .. 
+             * Either there was error, or we reached end of file.
+             */
+            /*if (nread < 256)
+            {
+                if (feof(fp))
+                    printf("End of file\n");
+                if (ferror(fp))
+                    printf("Error reading\n");
+                break;
+            }*/
+
+
+        }
+        fclose(fp);
+		 	
+		 	// $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+		 	
+		 	
+		 	
+		 	//bytes_read = fread(sup,1,sizeof(sup),fp);
+			//sup[bytes_read]='\0';
+			//#//send(clientsocket,bytes_read,bytes_read,0);
+			//printf("\nFile content :  %d , %d \n  %s ",bytes_read,size,sup);
+			//fprintf(ft,"%s",sup);
+			//fclose(ft);
+			//int count = write(clientsocket,sup,bytes_read);
+		 	//int count = send(clientsocket,sup,bytes_read ,0);#
+		 	//if(count!=bytes_read)
+		 	//	printf("\n #### full string not send");
+		 	//else 
+		 	//	printf("\n $$$$$$$ full data send %d ", count);
 		 	inet_ntop(AF_INET, &(serverAddr.sin_addr), str, INET_ADDRSTRLEN);
 		 	fprintf(fpm,"%s  ",frag_name);
             fprintf(fpm,"%s  ",str);
-            fprintf(fpm,"%d  ",size);
+            fprintf(fpm,"%d  ",bytes_read);
             fprintf(fpm,"%s","\n");
 			
 			printf("\nFile : %s has been sent to %s\n",frag_name,str);
-		}
+		//}
 		//remove(frag_name);
 		
 		
@@ -418,7 +444,7 @@ void encode(char *filename,int n,int m,char *stem)
 		fclose(fp2);
 		fclose(fpm);
 		printf("\n****** Hello ****** \n");
-		char *param[] = {"readfile","update_file_metadata","/home/user/Dropbox/Code/file8/gflib/metadata_exchangefile.txt"};
+		char *param[] = {"readfile","write_file_metadata","/home/user/Dropbox/Code/file8/gflib/metadata_exchangefile.txt"};
 		fn_call(3,param); // call to transfer the meta data to python meta data keeper
 		printf("\n I 'm back ......");
 		//remove original file

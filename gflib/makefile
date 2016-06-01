@@ -39,7 +39,7 @@
 CC = gcc 
 CFLAGS = -O
 
-ALL = gf_mult gf_div parity_test encode_file pingc xor  Menu  
+ALL = gf_mult gf_div parity_test fn_call_function encode_file pingc xor  Menu  
 #rs_encode_file rs_decode_file 
         #pingc
 
@@ -72,8 +72,13 @@ parity_test.o: gflib.h gflib.o
 parity_test: parity_test.o gflib.o
 	$(CC) $(CFLAGS) -o parity_test parity_test.o gflib.o
 
-encode_file: encode_file.o gflib.o
-	$(CC) -c encode_file encode_file.o gflib.o
+fn_call_function.o: fn_call_function.h 
+fn_call_function: fn_call_function.o fn_call_function.h
+	gcc -I/usr/include/python2.7 -c -fPIC fn_call_function.c -Ipython2.7
+
+encode_file.o:gflib.h gflib.o fn_call_function.h
+encode_file: encode_file.o gflib.o fn_call_function.o
+	$(CC) -c -fPIC encode_file encode_file.o gflib.o fn_call_function.o
 
 pingc: pingc.o gflib.o encode_file.o
 	$(CC) -c pingc pingc.o gflib.o encode_file.o 
@@ -96,14 +101,14 @@ rs_encode_file: rs_encode_file.o gflib.o
 
 rs_decode_file.o: gflib.h gflib.o
 
-Menu.o: gflib.h rs_encode_file.h
-Menu: Menu.o pingc.o rs_encode_file.o rs_decode_file.o gflib.o
-	$(CC) $(CFLAGS) -o Menu Menu.o pingc.o rs_encode_file.o rs_decode_file.o gflib.o encode_file.o
+Menu.o: gflib.h rs_encode_file.h fn_call_function.h 
+Menu: Menu.o pingc.o rs_encode_file.o rs_decode_file.o gflib.o encode_file.o fn_call_function.o
+	$(CC) -o Menu Menu.o -I/usr/include/python2.7 pingc.o rs_encode_file.o rs_decode_file.o gflib.o encode_file.o  fn_call_function.o -lpython2.7
 
 #rs_decode_file: rs_decode_file.o gflib.o
 	#$(CC) $(CFLAGS) -o rs_decode_file rs_decode_file.o gflib.o
 
-encode_file.o:gflib.h gflib.o
+
 
 #pingc.o: gflib.h rs_encode_file.h
 #pingc.o: encode_file.o rs_decode_file.o gflib.o
